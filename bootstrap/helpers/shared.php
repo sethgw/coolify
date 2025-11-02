@@ -2879,6 +2879,19 @@ function instanceSettings()
     return InstanceSettings::get();
 }
 
+function getHelperVersion(): string
+{
+    $settings = instanceSettings();
+
+    // In development mode, use the dev_helper_version if set, otherwise fallback to config
+    if (isDev() && ! empty($settings->dev_helper_version)) {
+        return $settings->dev_helper_version;
+    }
+
+    // In production or when dev_helper_version is not set, use the configured helper_version
+    return $settings->helper_version ?? config('constants.coolify.helper_version');
+}
+
 function loadConfigFromGit(string $repository, string $branch, string $base_directory, int $server_id, int $team_id)
 {
     $server = Server::find($server_id)->where('team_id', $team_id)->first();
@@ -3124,17 +3137,18 @@ function generateDockerComposeServiceName(mixed $services, int $pullRequestId = 
     return $collection;
 }
 
-function formatBytes(?int $bytes = 0, int $precision = 2): string
+function formatBytes(int $bytes, int $precision = 2): string
 {
-    if (is_null($bytes) || $bytes <= 0) {
+    if ($bytes === 0) {
         return '0 B';
     }
 
     $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-    $pow = min($pow, count($units) - 1);
+    $base = 1024;
+    $exponent = floor(log($bytes) / log($base));
+    $exponent = min($exponent, count($units) - 1);
 
-    $bytes /= (1024 ** $pow);
+    $value = $bytes / pow($base, $exponent);
 
-    return round($bytes, $precision).' '.$units[$pow];
+    return round($value, $precision).' '.$units[$exponent];
 }
